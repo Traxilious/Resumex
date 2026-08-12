@@ -1,0 +1,30 @@
+Alex Morgan
+Email: alex.morgan@example.com | Phone: (555) 019-2831
+LinkedIn: linkedin.com/in/alexmorgan-dev | GitHub: github.com/alexmorgan-code
+
+SUMMARY
+Enthusiastic and results-driven Web Developer with experience in building modern, responsive single-page web applications using HTML, CSS, JavaScript, and React. Passionate about UI design, clean code architecture, and REST API integration.
+
+TECHNICAL SKILLS
+- Frontend: HTML5, CSS3, JavaScript (ES6+), React.js, Tailwind CSS, Bootstrap
+- Backend & DB: Node.js, Express.js, SQL, MongoDB, REST API
+- Tools & Practices: Git, GitHub, Responsive Design, Webpack, Agile
+
+PROJECTS
+Smart Portfolio Web App | React, Node.js, Express, Tailwind CSS
+- Developed a high-performance personal developer portfolio showcasing 5 interactive projects.
+- Integrated REST API backend to handle dynamic project data fetching and contact form submissions.
+- Optimized asset loading speed by 40% using lazy loading and asset bundling.
+
+E-Commerce Storefront | HTML, CSS, JavaScript, Bootstrap, Node.js
+- Engineered a full-stack e-commerce frontend with interactive shopping cart and product filter mechanisms.
+- Automated API data parsing and reduced page re-renders across mobile and desktop views.
+
+EDUCATION
+Bachelor of Science in Computer Science
+State University, 2020 - 2024
+GPA: 3.8 / 4.0
+
+CERTIFICATIONS
+- Meta Front-End Developer Professional Certificate
+- Responsive Web Design Certification - freeCodeCamp

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResumeX | Smart Resume Scoring & ATS Feedback</title>
+
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- Animated Canvas Dotted Grid Background -->
+    <canvas id="dot-grid-canvas"></canvas>
+
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <a href="#" class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-file-lines"></i>
+            </div>
+            <div class="brand-text">Resume<span>X</span></div>
+        </a>
+        <div class="nav-links">
+            <button class="nav-btn" id="open-history-btn">
+                <i class="fa-solid fa-clock-rotate-left"></i> Evaluation History
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="main-container">
+
+        <!-- Hero & Upload Form -->
+        <section class="hero-section" id="upload-section">
+            <h1 class="hero-title">Optimize Your Resume with <span>ResumeX</span></h1>
+            <p class="hero-subtitle">Upload your resume in PDF or DOCX format. Select your target field or major, get an instant ATS compatibility score, content authenticity audit, section completeness breakdown, deep Pros & Cons analysis, and executive summary.</p>
+
+            <div class="glass-card upload-box">
+                <form id="analyzer-form">
+                    <!-- Target Role Selector -->
+                    <div class="form-group">
+                        <label for="target-role" class="form-label">
+                            <i class="fa-solid fa-briefcase"></i> Select Target Job Role / Qualification Field
+                        </label>
+                        <select id="target-role" name="target_role" class="role-select">
+                            <option value="" disabled selected>Loading roles...</option>
+                        </select>
+                        <input type="text" id="custom-role-input" placeholder="Type your custom target role (e.g. Mechanical Engineer, Nurse, Accountant...)" class="role-select" style="margin-top: 0.6rem; display: none;">
+                    </div>
+
+                    <!-- Drag & Drop File Area -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fa-solid fa-file-arrow-up"></i> Upload Resume Document
+                        </label>
+                        <div class="drop-zone" id="drop-zone">
+                            <i class="fa-solid fa-file-lines drop-icon"></i>
+                            <div class="drop-text">Drag & Drop your resume file here</div>
+                            <div class="drop-hint">Supports PDF, DOCX, or TXT (Max 16 MB)</div>
+                            <input type="file" id="file-input" name="resume_file" accept=".pdf,.docx,.doc,.txt" class="file-input">
+                            <div id="file-badge-container"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submit-btn">
+                        <i class="fa-solid fa-bolt"></i> Run Deep Analysis
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Loading View -->
+        <div id="loading-overlay" style="display: none; text-align: center; padding: 4rem 1rem;">
+            <div class="spinner" style="margin: 0 auto 1.5rem; width: 50px; height: 50px;"></div>
+            <h2 style="font-family: var(--font-heading); font-size: 1.6rem; margin-bottom: 0.5rem;">Running ResumeX Deep Evaluation...</h2>
+            <p style="color: var(--text-secondary);">Auditing document structure, checking phrasing authenticity %, pinpointing Pros & Cons, and compiling Executive Strategy Report.</p>
+        </div>
+
+        <!-- Dashboard View -->
+        <section class="dashboard-section" id="dashboard-section">
+            <div class="dash-header">
+                <div>
+                    <h2 class="dash-title">Comprehensive Analysis Dashboard</h2>
+                    <p style="color: var(--text-secondary);" id="dash-subtitle">Targeting: <strong id="res-target-role" style="color: var(--primary-light);">Web Developer</strong> | Document: <span id="res-filename">resume.pdf</span></p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="nav-btn" id="reset-btn">
+                        <i class="fa-solid fa-rotate-left"></i> Analyze Another
+                    </button>
+                    <button class="nav-btn" onclick="window.print()" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4);">
+                        <i class="fa-solid fa-print"></i> Export Full Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Executive Verdict Banner -->
+            <div class="glass-card verdict-card" id="verdict-card">
+                <div class="verdict-left">
+                    <div class="verdict-icon-box" id="verdict-icon-box">
+                        <i class="fa-solid fa-circle-check" id="verdict-icon"></i>
+                    </div>
+                    <div>
+                        <div class="verdict-title">ATS Preparedness Verdict</div>
+                        <div class="verdict-status" id="verdict-status">Highly Competitive</div>
+                    </div>
+                </div>
+                <div class="verdict-scores">
+                    <div class="v-score-item">
+                        <div class="v-score-val" id="banner-overall-score">0</div>
+                        <div class="v-score-lbl">Overall Rating</div>
+                    </div>
+                    <div class="v-score-item">
+                        <div class="v-score-val" id="banner-ats-score" style="color: var(--accent-cyan);">0%</div>
+                        <div class="v-score-lbl">ATS Keyword Match</div>
+                    </div>
+                    <div class="v-score-item">
+                        <div class="v-score-val" id="banner-authenticity-score" style="color: var(--accent-amber);">0%</div>
+                        <div class="v-score-lbl">Authenticity Score</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metric Cards Grid -->
+            <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));">
+                <!-- Overall Score -->
+                <div class="glass-card score-card">
+                    <div class="score-label">Overall Resume Score</div>
+                    <div class="score-gauge-container">
+                        <div class="score-value" id="res-overall-score">0</div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);" id="overall-score-tag">Evaluated out of 100</div>
+                </div>
+
+                <!-- ATS Match Score -->
+                <div class="glass-card score-card">
+                    <div class="score-label">ATS Match Score</div>
+                    <div class="score-gauge-container">
+                        <div class="score-value" id="res-ats-score" style="color: var(--accent-cyan);">0%</div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);" id="ats-matched-ratio">0 Core Skills Found</div>
+                </div>
+
+                <!-- Content Authenticity Score -->
+                <div class="glass-card score-card">
+                    <div class="score-label"><i class="fa-solid fa-shield-halved"></i> Content Authenticity</div>
+                    <div class="score-gauge-container">
+                        <div class="score-value" id="res-authenticity-score" style="color: var(--accent-amber);">0%</div>
+                    </div>
+                    <div style="font-size: 0.85rem; font-weight: 700;" id="authenticity-risk-tag" class="text-emerald">Natural Phrasing</div>
+                </div>
+
+                <!-- Document Stats -->
+                <div class="glass-card" style="padding: 1.5rem; overflow: hidden;">
+                    <div class="score-label" style="margin-bottom: 1rem;">Structure Audit</div>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.95rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                            <span style="color: var(--text-secondary); white-space: nowrap;"><i class="fa-solid fa-font"></i> Word Count:</span>
+                            <strong id="res-word-count">0 words</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; overflow: hidden;">
+                            <span style="color: var(--text-secondary); white-space: nowrap;"><i class="fa-solid fa-envelope"></i> Email:</span>
+                            <strong id="res-email-found" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; text-align: right;">Yes</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; overflow: hidden;">
+                            <span style="color: var(--text-secondary); white-space: nowrap;"><i class="fa-solid fa-phone"></i> Phone:</span>
+                            <strong id="res-phone-found" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; text-align: right;">Missing</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                            <span style="color: var(--text-secondary); white-space: nowrap;"><i class="fa-brands fa-linkedin"></i> LinkedIn:</span>
+                            <strong id="res-linkedin-found">Not Detected</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                            <span style="color: var(--text-secondary); white-space: nowrap;"><i class="fa-brands fa-github"></i> GitHub:</span>
+                            <strong id="res-github-found">Detected</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROS vs CONS Breakdown Grid -->
+            <div class="pros-cons-grid">
+                <!-- PROS Card -->
+                <div class="glass-card pros-card">
+                    <h3 class="pc-title text-emerald"><i class="fa-solid fa-circle-check"></i> Key Strengths & Pros</h3>
+                    <ul class="pc-list" id="pros-list"></ul>
+                </div>
+
+                <!-- CONS Card -->
+                <div class="glass-card cons-card">
+                    <h3 class="pc-title text-rose"><i class="fa-solid fa-circle-xmark"></i> Areas of Concern & Cons</h3>
+                    <ul class="pc-list" id="cons-list"></ul>
+                </div>
+            </div>
+
+            <!-- Two Column Section: Skills vs Chart -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                
+                <!-- Skills Matcher Badges -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); margin-bottom: 0.5rem;"><i class="fa-solid fa-tags" style="color: var(--primary-light);"></i> Technical Skills Gap Analysis</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">Matched skills found in your document vs missing keywords recommended for this role.</p>
+                    
+                    <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--accent-emerald); margin-bottom: 0.5rem;">Matched Keywords</h4>
+                    <div class="skills-container" id="matched-skills-container"></div>
+
+                    <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--accent-rose); margin-top: 1.2rem; margin-bottom: 0.5rem;">Missing Essential Keywords</h4>
+                    <div class="skills-container" id="missing-skills-container"></div>
+                </div>
+
+                <!-- Score Breakdown Chart -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); margin-bottom: 0.5rem;"><i class="fa-solid fa-chart-pie" style="color: var(--accent-cyan);"></i> Section Evaluation Breakdown</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">Point allocation breakdown across structure, contact links, action verbs, and ATS alignment.</p>
+                    <div style="max-height: 260px; position: relative;">
+                        <canvas id="scoreChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Smart Suggestions List -->
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <h3 style="font-family: var(--font-heading); margin-bottom: 0.3rem;"><i class="fa-solid fa-list-check" style="color: var(--accent-amber);"></i> Actionable Improvement Plan</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Prioritized action steps to increase your resume score and bypass ATS screening filters.</p>
+                <div class="suggestions-list" id="suggestions-list"></div>
+            </div>
+
+            <!-- Recommended Projects & Learning Resources Section -->
+            <div class="glass-card" style="margin-bottom: 2rem; border-top: 3px solid var(--accent-cyan);">
+                <h3 style="font-family: var(--font-heading); margin-bottom: 0.3rem;"><i class="fa-solid fa-graduation-cap" style="color: var(--accent-cyan);"></i> Recommended Portfolio Projects & Learning Resources</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Hand-picked portfolio project ideas and top-rated tutorials to bridge your skill gaps and boost your recruiter callback rate.</p>
+
+                <!-- Suggested Portfolio Projects -->
+                <h4 style="font-size: 0.9rem; text-transform: uppercase; color: var(--primary); margin-bottom: 0.75rem; font-weight: 700;">
+                    <i class="fa-solid fa-code" style="color: var(--accent-cyan);"></i> Suggested Portfolio Projects to Build
+                </h4>
+                <div id="recommended-projects-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1.75rem;"></div>
+
+                <!-- Curated Learning Resources -->
+                <h4 style="font-size: 0.9rem; text-transform: uppercase; color: var(--primary); margin-bottom: 0.75rem; font-weight: 700;">
+                    <i class="fa-solid fa-book-bookmark" style="color: var(--accent-emerald);"></i> Curated Video Courses & Learning References
+                </h4>
+                <div id="curated-resources-container" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+            </div>
+
+            <!-- Big Executive Summary Section -->
+            <div class="glass-card summary-card">
+                <h3 class="summary-title"><i class="fa-solid fa-file-contract" style="color: var(--primary-light);"></i> Executive Summary & Strategic Roadmap</h3>
+                <div class="summary-content" id="executive-summary-text"></div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Evaluation History Modal -->
+    <div class="modal-overlay" id="history-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="close-modal-btn">&times;</button>
+            <h2 style="font-family: var(--font-heading); margin-bottom: 0.5rem;"><i class="fa-solid fa-history" style="color: var(--primary-light);"></i> Past Evaluation Logs</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Review recent resume evaluations stored in SQLite local database.</p>
+            <div id="history-table-container"></div>
+        </div>
+    </div>
+
+    <!-- Frontend JS logic -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

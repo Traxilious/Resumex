@@ -1,0 +1,29 @@
+Priya Sharma
+Email: priya.sharma@example.com | Phone: (555) 438-9102
+LinkedIn: linkedin.com/in/priyasharma-data | GitHub: github.com/priyasharma-analytics
+
+SUMMARY
+Detail-oriented Data Analyst with expertise in Python, SQL, Tableau, and Excel. Skilled in data cleaning, exploratory data analysis, interactive dashboard generation, and statistical modeling to drive strategic business decisions.
+
+TECHNICAL SKILLS
+- Programming & Queries: Python, SQL, R, PostgreSQL
+- Libraries: Pandas, NumPy, Scikit-Learn, Matplotlib, Seaborn
+- Visualization & Tools: Tableau, Power BI, Advanced Excel, Git, ETL Pipelines
+
+WORK EXPERIENCE & PROJECTS
+Customer Churn Prediction Analysis | Python, Pandas, Scikit-Learn, Tableau
+- Analyzed a dataset of 10,000+ customer records to identify key churn indicators.
+- Built exploratory data visualization dashboards in Tableau to communicate retention strategies to executive leadership.
+- Increased predictive retention accuracy by 25% using logistic regression and decision tree models.
+
+Retail Sales Insights Dashboard | SQL, Power BI, Excel
+- Constructed complex SQL queries across PostgreSQL databases to clean and aggregate sales transaction records.
+- Designed an executive Power BI reporting dashboard tracking monthly revenue metrics across 5 regional branches.
+
+EDUCATION
+Bachelor of Science in Statistics & Data Science
+National Institute of Technology, 2021 - 2025
+
+CERTIFICATIONS
+- Google Data Analytics Professional Certificate
+- Advanced SQL for Data Science - Coursera
