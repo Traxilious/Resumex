@@ -141,7 +141,16 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST',
             body: formData
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(errData => {
+                    throw new Error(errData.message || `Server error (${res.status})`);
+                }).catch(() => {
+                    throw new Error(`Server response error (${res.status})`);
+                });
+            }
+            return res.json();
+        })
         .then(data => {
             loadingOverlay.style.display = 'none';
             if (data.status === 'success') {
@@ -154,7 +163,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(err => {
             loadingOverlay.style.display = 'none';
             uploadSection.style.display = 'block';
-            alert('Server error while analyzing resume: ' + err.message);
+            if (err.message && err.message.includes('Failed to fetch')) {
+                alert('Server Connection Notice: Free cloud hosting server is waking up (cold start). Please wait 10-15 seconds and click "Run Deep Analysis" again!');
+            } else {
+                alert('Notice: ' + err.message);
+            }
         });
     });
 
@@ -567,6 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Helpers
     function animateValue(id, start, end, duration, suffix = '') {
         const obj = document.getElementById(id);
+        if (!obj) return;
         let startTimestamp = null;
         const step = (timestamp) => {
             if (!startTimestamp) startTimestamp = timestamp;

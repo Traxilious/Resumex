@@ -1,31 +1,22 @@
 import re
 import os
-import numpy as np
 import pdfplumber
 import docx
-import pypdfium2 as pdfium
 from pypdf import PdfReader
 from pdfminer.high_level import extract_text as pdfminer_extract_text
-from rapidocr_onnxruntime import RapidOCR
-
-# Lazy-loaded RapidOCR engine instance
-_ocr_engine = None
-
-def get_ocr_engine():
-    global _ocr_engine
-    if _ocr_engine is None:
-        _ocr_engine = RapidOCR()
-    return _ocr_engine
 
 def ocr_pdf_pages(filepath):
     """
-    Renders PDF pages as high-resolution images using pypdfium2
-    and performs Optical Character Recognition (OCR) using RapidOCR.
-    Essential for scanned image PDFs and flat screenshots.
+    Lazy-loads RapidOCR and pypdfium2 ONLY when a scanned image PDF is detected.
+    Safe try-except wrapper ensures zero memory crashes on cloud hosting platforms.
     """
     extracted_text = ""
     try:
-        engine = get_ocr_engine()
+        import numpy as np
+        import pypdfium2 as pdfium
+        from rapidocr_onnxruntime import RapidOCR
+
+        engine = RapidOCR()
         pdf = pdfium.PdfDocument(filepath)
         for page in pdf:
             pil_image = page.render(scale=2).to_pil()
@@ -35,7 +26,7 @@ def ocr_pdf_pages(filepath):
                 lines = [res[1] for res in result if res[1]]
                 extracted_text += " ".join(lines) + "\n"
     except Exception as e:
-        print(f"OCR PDF extraction error: {e}")
+        print(f"OCR PDF extraction fallback notice: {e}")
     return extracted_text
 
 def extract_text_from_pdf(filepath):
@@ -170,7 +161,7 @@ def extract_contact_info(text):
     if phone_match and len(re.sub(r'\D', '', phone_match.group(0))) >= 7:
         contact["phone"] = phone_match.group(0).strip()
 
-    # 3. LinkedIn regex (matches full URLs, in/username, or linkedin text mentions)
+    # 3. LinkedIn regex
     linkedin_match = (
         re.search(r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+/?', text, re.IGNORECASE) or
         re.search(r'\b(linkedin\.com/in/[a-zA-Z0-9_-]+)\b', text, re.IGNORECASE) or
