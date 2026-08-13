@@ -1,88 +1,35 @@
 import re
 import os
-import pdfplumber
 import docx
-from pypdf import PdfReader
-from pdfminer.high_level import extract_text as pdfminer_extract_text
-
-def ocr_pdf_pages(filepath):
-    """
-    Lazy-loads RapidOCR and pypdfium2 ONLY when a scanned image PDF is detected.
-    Safe try-except wrapper ensures zero memory crashes on cloud hosting platforms.
-    """
-    extracted_text = ""
-    try:
-        import numpy as np
-        import pypdfium2 as pdfium
-        from rapidocr_onnxruntime import RapidOCR
-
-        engine = RapidOCR()
-        pdf = pdfium.PdfDocument(filepath)
-        for page in pdf:
-            pil_image = page.render(scale=2).to_pil()
-            img_np = np.array(pil_image)
-            result, _ = engine(img_np)
-            if result:
-                lines = [res[1] for res in result if res[1]]
-                extracted_text += " ".join(lines) + "\n"
-    except Exception as e:
-        print(f"OCR PDF extraction fallback notice: {e}")
-    return extracted_text
 
 def extract_text_from_pdf(filepath):
     """
-    Multi-engine fallback PDF text extraction pipeline:
-    1. pdfplumber standard layout extraction
-    2. pdfplumber word bounding box layout reconstruction
-    3. pypdf text stream extraction
-    4. pdfminer.six text extraction
-    5. RapidOCR Optical Character Recognition (for scanned image PDFs)
+    Ultra-lightweight high-performance PDF text extraction.
+    Uses pypdf as primary engine (uses <5MB RAM).
     """
     extracted_text = ""
-
-    # Engine 1: pdfplumber standard text extraction
+    # Primary Engine: pypdf (Ultra-lightweight)
     try:
-        with pdfplumber.open(filepath) as pdf:
-            for page in pdf.pages:
-                t = page.extract_text()
-                if t and t.strip():
-                    extracted_text += t + "\n"
-                else:
-                    words = page.extract_words()
-                    if words:
-                        extracted_text += " ".join([w['text'] for w in words]) + "\n"
+        from pypdf import PdfReader
+        reader = PdfReader(filepath)
+        for page in reader.pages:
+            t = page.extract_text()
+            if t:
+                extracted_text += t + "\n"
     except Exception as e:
-        print(f"pdfplumber extraction attempt error: {e}")
+        print(f"pypdf extraction error: {e}")
 
-    # Engine 2: pypdf fallback if pdfplumber extracted less than 15 words
+    # Fallback Engine: pdfplumber (if pypdf extracted under 15 words)
     if len(extracted_text.strip().split()) < 15:
         try:
-            reader = PdfReader(filepath)
-            pypdf_text = ""
-            for page in reader.pages:
-                pt = page.extract_text()
-                if pt:
-                    pypdf_text += pt + "\n"
-            if len(pypdf_text.strip().split()) > len(extracted_text.strip().split()):
-                extracted_text = pypdf_text
+            import pdfplumber
+            with pdfplumber.open(filepath) as pdf:
+                for page in pdf.pages:
+                    t = page.extract_text()
+                    if t and t.strip():
+                        extracted_text += t + "\n"
         except Exception as e:
-            print(f"pypdf fallback extraction error: {e}")
-
-    # Engine 3: pdfminer.six fallback if still under 15 words
-    if len(extracted_text.strip().split()) < 15:
-        try:
-            miner_text = pdfminer_extract_text(filepath)
-            if miner_text and len(miner_text.strip().split()) > len(extracted_text.strip().split()):
-                extracted_text = miner_text
-        except Exception as e:
-            print(f"pdfminer fallback extraction error: {e}")
-
-    # Engine 4: RapidOCR Fallback (for scanned image PDFs / screenshots)
-    if len(extracted_text.strip().split()) < 15:
-        print(f"Standard PDF text engines extracted under 15 words. Invoking RapidOCR engine on {filepath}...")
-        ocr_text = ocr_pdf_pages(filepath)
-        if len(ocr_text.strip().split()) > len(extracted_text.strip().split()):
-            extracted_text = ocr_text
+            print(f"pdfplumber fallback error: {e}")
 
     return extracted_text
 
@@ -131,18 +78,16 @@ def parse_document(filepath):
     }
 
 def clean_text(text):
-    """Clean and normalize extracted text, removing CID noise and non-printable characters."""
+    """Clean and normalize extracted text."""
     if not text:
         return ""
-    # Strip (cid:xxx) artifacts from unmapped PDF font encodings
     cleaned = re.sub(r'\(cid:\d+\)', ' ', text)
-    # Replace multiple whitespace and newlines
     cleaned = re.sub(r'\s+', ' ', cleaned)
     cleaned = cleaned.strip()
     return cleaned
 
 def extract_contact_info(text):
-    """Extract email, phone number, LinkedIn, and GitHub links via robust regular expressions."""
+    """Extract email, phone number, LinkedIn, and GitHub links."""
     contact = {
         "email": None,
         "phone": None,
@@ -151,17 +96,14 @@ def extract_contact_info(text):
         "portfolio": None
     }
     
-    # 1. Email regex
     email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
     if email_match:
         contact["email"] = email_match.group(0)
 
-    # 2. Phone regex (supports international +, parentheses, dashes, dots, spaces, 10-15 digits)
     phone_match = re.search(r'(\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,9}', text)
     if phone_match and len(re.sub(r'\D', '', phone_match.group(0))) >= 7:
         contact["phone"] = phone_match.group(0).strip()
 
-    # 3. LinkedIn regex
     linkedin_match = (
         re.search(r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+/?', text, re.IGNORECASE) or
         re.search(r'\b(linkedin\.com/in/[a-zA-Z0-9_-]+)\b', text, re.IGNORECASE) or
@@ -171,7 +113,6 @@ def extract_contact_info(text):
     if linkedin_match:
         contact["linkedin"] = linkedin_match.group(0).strip()
 
-    # 4. GitHub regex
     github_match = (
         re.search(r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+/?', text, re.IGNORECASE) or
         re.search(r'\b(github\.com/[a-zA-Z0-9_-]+)\b', text, re.IGNORECASE) or
@@ -180,7 +121,6 @@ def extract_contact_info(text):
     if github_match:
         contact["github"] = github_match.group(0).strip()
 
-    # 5. Portfolio / Website regex
     portfolio_match = re.search(r'(https?://)?(www\.)?[a-zA-Z0-9-]+\.(com|io|me|dev|net|org)(/[a-zA-Z0-9_-]+)?', text, re.IGNORECASE)
     if portfolio_match and not contact["linkedin"] and not contact["github"]:
         contact["portfolio"] = portfolio_match.group(0).strip()
@@ -200,8 +140,6 @@ def extract_sections(text):
     }
 
     lowered = text.lower()
-
-    # Section keyword patterns
     patterns = {
         "summary": [r'\bsummary\b', r'\bprofile\b', r'\bobjective\b', r'\babout me\b'],
         "education": [r'\beducation\b', r'\bacademic\b', r'\bqualification\b', r'\bdegree\b'],
