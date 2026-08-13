@@ -4,25 +4,34 @@ import docx
 
 def extract_text_from_pdf(filepath):
     """
-    Multi-engine lightweight PDF text extraction:
-    1. pypdf (ultra-fast, ~5MB RAM)
-    2. pdfplumber fallback (high fidelity)
-    3. pdfminer.six fallback
+    Multi-engine PDF text extraction pipeline:
+    1. PyMuPDF (fitz) - Extremely fast, handles Canva/Figma/Word/Custom font PDFs (<15MB RAM).
+    2. pdfplumber - Layout & word bounding box fallback.
+    3. pypdf - Native stream reader fallback.
+    4. pdfminer.six - High-level layout fallback.
     """
     extracted_text = ""
-    
-    # Engine 1: pypdf (ultra-fast)
+
+    # Engine 1: PyMuPDF (fitz) - Most reliable PDF text parser
     try:
-        from pypdf import PdfReader
-        reader = PdfReader(filepath)
-        for page in reader.pages:
-            t = page.extract_text()
+        import fitz
+        doc = fitz.open(filepath)
+        for page in doc:
+            t = page.get_text("text")
             if t and t.strip():
                 extracted_text += t + "\n"
+            else:
+                # Try block-level text extraction
+                blocks = page.get_text("blocks")
+                if blocks:
+                    block_texts = [b[4] for b in blocks if len(b) >= 5 and b[4].strip()]
+                    if block_texts:
+                        extracted_text += "\n".join(block_texts) + "\n"
+        doc.close()
     except Exception as e:
-        print(f"pypdf extraction error: {e}")
+        print(f"PyMuPDF extraction notice: {e}")
 
-    # Engine 2: pdfplumber fallback if pypdf extracted under 15 words
+    # Engine 2: pdfplumber fallback (if PyMuPDF extracted under 15 words)
     if len(extracted_text.strip().split()) < 15:
         try:
             import pdfplumber
@@ -36,9 +45,24 @@ def extract_text_from_pdf(filepath):
                         if words:
                             extracted_text += " ".join([w['text'] for w in words]) + "\n"
         except Exception as e:
-            print(f"pdfplumber fallback error: {e}")
+            print(f"pdfplumber fallback notice: {e}")
 
-    # Engine 3: pdfminer.six fallback if still under 15 words
+    # Engine 3: pypdf fallback (if still under 15 words)
+    if len(extracted_text.strip().split()) < 15:
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(filepath)
+            pypdf_text = ""
+            for page in reader.pages:
+                pt = page.extract_text()
+                if pt:
+                    pypdf_text += pt + "\n"
+            if len(pypdf_text.strip().split()) > len(extracted_text.strip().split()):
+                extracted_text = pypdf_text
+        except Exception as e:
+            print(f"pypdf fallback notice: {e}")
+
+    # Engine 4: pdfminer.six fallback (if still under 15 words)
     if len(extracted_text.strip().split()) < 15:
         try:
             from pdfminer.high_level import extract_text as pdfminer_extract_text
@@ -46,7 +70,7 @@ def extract_text_from_pdf(filepath):
             if miner_text and len(miner_text.strip().split()) > len(extracted_text.strip().split()):
                 extracted_text = miner_text
         except Exception as e:
-            print(f"pdfminer fallback error: {e}")
+            print(f"pdfminer fallback notice: {e}")
 
     return extracted_text
 
