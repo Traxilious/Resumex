@@ -2,7 +2,8 @@ import sqlite3
 import json
 import os
 
-DB_NAME = "database.db"
+# Use /tmp directory on Vercel serverless environment
+DB_NAME = os.path.join("/tmp", "database.db") if os.environ.get("VERCEL") else "database.db"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -125,7 +126,7 @@ def init_db():
 
         ("Financial / Business Analyst", "Finance & Strategy", "Performs financial modeling, forecasting, budgeting, and corporate valuation.",
          ["financial modeling", "excel", "financial analysis", "forecasting", "budgeting", "data analysis", "valuation"],
-         ["sql", "power bi", "sap", "accounting", "corporate finance"]),
+         ["stakeholder management", "power bi", "sap", "accounting", "corporate finance"]),
 
         # Universal Fallback Option
         ("Other / Custom Role", "General Professional", "Universal assessment for custom job roles, non-tech majors, and specialized fields.",
