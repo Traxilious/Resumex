@@ -44,16 +44,16 @@ def get_roles():
 def analyze_resume():
     """Main analysis endpoint for resume upload and evaluation."""
     if 'resume_file' not in request.files:
-        return jsonify({"status": "error", "message": "No file uploaded."}), 400
+        return jsonify({"status": "error", "message": "Please select a resume file to upload."}), 200
 
     file = request.files['resume_file']
     target_role = request.form.get('target_role', 'Web Developer')
 
     if file.filename == '':
-        return jsonify({"status": "error", "message": "Selected file has no filename."}), 400
+        return jsonify({"status": "error", "message": "Selected file has no filename."}), 200
 
     if not allowed_file(file.filename):
-        return jsonify({"status": "error", "message": "Unsupported file format. Please upload PDF, DOCX, or TXT."}), 400
+        return jsonify({"status": "error", "message": "Unsupported file format. Please upload PDF, DOCX, or TXT."}), 200
 
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -64,7 +64,7 @@ def analyze_resume():
         parsed_data = parse_document(filepath)
 
         if not parsed_data.get("raw_text") or len(parsed_data["raw_text"].strip()) == 0:
-            return jsonify({"status": "error", "message": "Could not extract readable text from document. Ensure it is not password-protected."}), 400
+            return jsonify({"status": "error", "message": "Could not extract text from document. Please ensure your resume PDF or DOCX contains selectable text."}), 200
 
         # 2. Query target role skills from database
         conn = get_db_connection()
@@ -157,7 +157,7 @@ def analyze_resume():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({"status": "error", "message": f"Server processing error: {str(e)}"}), 500
+        return jsonify({"status": "error", "message": f"Processing notice: {str(e)}"}), 200
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
@@ -172,7 +172,7 @@ def get_history():
         history = [dict(row) for row in rows]
         return jsonify({"status": "success", "history": history})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

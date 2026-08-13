@@ -4,22 +4,25 @@ import docx
 
 def extract_text_from_pdf(filepath):
     """
-    Ultra-lightweight high-performance PDF text extraction.
-    Uses pypdf as primary engine (uses <5MB RAM).
+    Multi-engine lightweight PDF text extraction:
+    1. pypdf (ultra-fast, ~5MB RAM)
+    2. pdfplumber fallback (high fidelity)
+    3. pdfminer.six fallback
     """
     extracted_text = ""
-    # Primary Engine: pypdf (Ultra-lightweight)
+    
+    # Engine 1: pypdf (ultra-fast)
     try:
         from pypdf import PdfReader
         reader = PdfReader(filepath)
         for page in reader.pages:
             t = page.extract_text()
-            if t:
+            if t and t.strip():
                 extracted_text += t + "\n"
     except Exception as e:
         print(f"pypdf extraction error: {e}")
 
-    # Fallback Engine: pdfplumber (if pypdf extracted under 15 words)
+    # Engine 2: pdfplumber fallback if pypdf extracted under 15 words
     if len(extracted_text.strip().split()) < 15:
         try:
             import pdfplumber
@@ -28,8 +31,22 @@ def extract_text_from_pdf(filepath):
                     t = page.extract_text()
                     if t and t.strip():
                         extracted_text += t + "\n"
+                    else:
+                        words = page.extract_words()
+                        if words:
+                            extracted_text += " ".join([w['text'] for w in words]) + "\n"
         except Exception as e:
             print(f"pdfplumber fallback error: {e}")
+
+    # Engine 3: pdfminer.six fallback if still under 15 words
+    if len(extracted_text.strip().split()) < 15:
+        try:
+            from pdfminer.high_level import extract_text as pdfminer_extract_text
+            miner_text = pdfminer_extract_text(filepath)
+            if miner_text and len(miner_text.strip().split()) > len(extracted_text.strip().split()):
+                extracted_text = miner_text
+        except Exception as e:
+            print(f"pdfminer fallback error: {e}")
 
     return extracted_text
 
