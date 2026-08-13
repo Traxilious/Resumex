@@ -2,26 +2,66 @@ import re
 import os
 import docx
 
+def ocr_pdf_pages(filepath):
+    """
+    Extracts text from scanned image PDFs (like RESUME_JESH.pdf) using PyMuPDF image extraction
+    and RapidOCR.
+    """
+    extracted_text = ""
+    try:
+        import pymupdf as fitz
+        import io
+        from PIL import Image
+        import numpy as np
+        from rapidocr_onnxruntime import RapidOCR
+
+        engine = RapidOCR()
+        doc = fitz.open(filepath)
+        for page in doc:
+            image_list = page.get_images()
+            if image_list:
+                for img_info in image_list:
+                    xref = img_info[0]
+                    base_image = doc.extract_image(xref)
+                    image_bytes = base_image["image"]
+                    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+                    result, _ = engine(np.array(img))
+                    if result:
+                        lines = [r[1] for r in result if r[1]]
+                        extracted_text += "\n".join(lines) + "\n"
+            else:
+                # Fallback page rendering
+                pix = page.get_pixmap(dpi=150)
+                img = Image.open(io.BytesIO(pix.tobytes("png"))).convert('RGB')
+                result, _ = engine(np.array(img))
+                if result:
+                    lines = [r[1] for r in result if r[1]]
+                    extracted_text += "\n".join(lines) + "\n"
+        doc.close()
+    except Exception as e:
+        print(f"OCR PDF extraction notice: {e}")
+    return extracted_text
+
 def extract_text_from_pdf(filepath):
     """
     Multi-engine PDF text extraction pipeline:
-    1. PyMuPDF (fitz) - Extremely fast, handles Canva/Figma/Word/Custom font PDFs (<15MB RAM).
+    1. PyMuPDF (fitz) - Extremely fast text & block extraction.
     2. pdfplumber - Layout & word bounding box fallback.
     3. pypdf - Native stream reader fallback.
     4. pdfminer.six - High-level layout fallback.
+    5. RapidOCR - Optical Character Recognition for scanned image PDFs (e.g. RESUME_JESH.pdf).
     """
     extracted_text = ""
 
-    # Engine 1: PyMuPDF (fitz) - Most reliable PDF text parser
+    # Engine 1: PyMuPDF (fitz)
     try:
-        import fitz
+        import pymupdf as fitz
         doc = fitz.open(filepath)
         for page in doc:
             t = page.get_text("text")
             if t and t.strip():
                 extracted_text += t + "\n"
             else:
-                # Try block-level text extraction
                 blocks = page.get_text("blocks")
                 if blocks:
                     block_texts = [b[4] for b in blocks if len(b) >= 5 and b[4].strip()]
@@ -71,6 +111,13 @@ def extract_text_from_pdf(filepath):
                 extracted_text = miner_text
         except Exception as e:
             print(f"pdfminer fallback notice: {e}")
+
+    # Engine 5: RapidOCR Fallback for scanned image PDFs (e.g. RESUME_JESH.pdf)
+    if len(extracted_text.strip().split()) < 15:
+        print(f"Standard PDF engines extracted under 15 words. Invoking RapidOCR on {filepath}...")
+        ocr_text = ocr_pdf_pages(filepath)
+        if len(ocr_text.strip().split()) > len(extracted_text.strip().split()):
+            extracted_text = ocr_text
 
     return extracted_text
 
