@@ -48,7 +48,7 @@ def extract_text_from_pdf(filepath):
     2. pdfplumber - Layout & word bounding box fallback.
     3. pypdf - Native stream reader fallback.
     4. pdfminer.six - High-level layout fallback.
-    5. RapidOCR / Image Pixmap OCR - Scanned image PDFs (e.g. RESUME_JESH.pdf).
+    5. RapidOCR / Image Pixmap OCR - Scanned image PDFs (e.g. jen_resume.pdf, RESUME_JESH.pdf).
     """
     extracted_text = ""
 
@@ -111,7 +111,7 @@ def extract_text_from_pdf(filepath):
         except Exception as e:
             print(f"pdfminer fallback notice: {e}")
 
-    # Engine 5: RapidOCR / Image Pixmap OCR Fallback for scanned image PDFs (e.g. RESUME_JESH.pdf)
+    # Engine 5: RapidOCR / Image Pixmap OCR Fallback for scanned image PDFs (e.g. jen_resume.pdf, RESUME_JESH.pdf)
     if len(extracted_text.strip().split()) < 15:
         print(f"Standard PDF engines extracted under 15 words. Invoking RapidOCR on {filepath}...")
         ocr_text = ocr_pdf_pages(filepath)
@@ -175,8 +175,8 @@ def clean_text(text):
 
 def extract_contact_info(text):
     """
-    Extract ONLY REAL email, phone number, LinkedIn, and GitHub links from actual document text.
-    NO fake/placeholder numbers or dummy emails are ever returned.
+    Extract exact email, phone number, LinkedIn, and GitHub/Portfolio links.
+    Includes OCR fuzzy repair logic for scanned image resumes (e.g. jen_resume.pdf, RESUME_JESH.pdf).
     """
     contact = {
         "email": None,
@@ -189,31 +189,44 @@ def extract_contact_info(text):
     if not text or len(text.strip()) == 0:
         return contact
     
-    # 1. Real Email Extraction Regex
+    # 1. Standard Email Regex
     email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
     if email_match:
         contact["email"] = email_match.group(0)
+    else:
+        # OCR Fuzzy Repair for emails (e.g. "info AT resumekraft.com" or "infogresumekraft.com")
+        ocr_email = re.search(r'([a-zA-Z0-9._%+-]+)\s*(?:@|g|at|\(at\))\s*([a-zA-Z0-9.-]+\.(?:com|org|net|edu|in|dev|io))', text, re.IGNORECASE)
+        if ocr_email and len(ocr_email.group(1)) >= 3:
+            contact["email"] = f"{ocr_email.group(1)}@{ocr_email.group(2)}"
 
-    # 2. Real Phone Number Extraction Regex
+    # 2. Standard Phone Regex
     phone_match = re.search(r'(\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,9}', text)
     if phone_match:
-        digits_only = re.sub(r'\D', '', phone_match.group(0))
-        if len(digits_only) >= 7 and not digits_only.startswith('9876543210'):
-            contact["phone"] = phone_match.group(0).strip()
-        elif len(digits_only) >= 7:
+        digits = re.sub(r'\D', '', phone_match.group(0))
+        if len(digits) >= 10:
             contact["phone"] = phone_match.group(0).strip()
 
-    # 3. Real LinkedIn Profile Regex
+    if not contact["phone"]:
+        # OCR Repair for phone numbers like "D12145196598" or "Ph 12145196598"
+        ocr_phone = re.search(r'(?:phone|tel|ph|mobile|d|p|\b)(\d{10,12})\b', text, re.IGNORECASE)
+        if ocr_phone:
+            contact["phone"] = ocr_phone.group(1)
+
+    # 3. Standard & OCR Repair LinkedIn Regex
     linkedin_match = (
         re.search(r'(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+/?', text, re.IGNORECASE) or
         re.search(r'\b(linkedin\.com/in/[a-zA-Z0-9_-]+)\b', text, re.IGNORECASE) or
         re.search(r'\b(in/[a-zA-Z0-9_-]{3,})\b', text, re.IGNORECASE) or
-        re.search(r'linkedin[\s:]*([a-zA-Z0-9_-]{3,})', text, re.IGNORECASE)
+        re.search(r'(?:hokedin|linkdin|linkedin)[./\s]*in[./\s]*([a-zA-Z0-9_-]+)', text, re.IGNORECASE)
     )
     if linkedin_match:
-        contact["linkedin"] = linkedin_match.group(0).strip()
+        val = linkedin_match.group(0).strip()
+        if 'linkedin.com/in/' not in val.lower():
+            slug = val.split('/')[-1].split('in')[-1].strip()
+            val = f"linkedin.com/in/{slug}"
+        contact["linkedin"] = val
 
-    # 4. Real GitHub Repository Regex
+    # 4. Standard & OCR Repair GitHub Regex
     github_match = (
         re.search(r'(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+/?', text, re.IGNORECASE) or
         re.search(r'\b(github\.com/[a-zA-Z0-9_-]+)\b', text, re.IGNORECASE) or
@@ -222,7 +235,7 @@ def extract_contact_info(text):
     if github_match:
         contact["github"] = github_match.group(0).strip()
 
-    # 5. Real Portfolio Link Regex
+    # 5. Portfolio Regex
     portfolio_match = re.search(r'(https?://)?(www\.)?[a-zA-Z0-9-]+\.(com|io|me|dev|net|org)(/[a-zA-Z0-9_-]+)?', text, re.IGNORECASE)
     if portfolio_match and not contact["linkedin"] and not contact["github"]:
         contact["portfolio"] = portfolio_match.group(0).strip()
