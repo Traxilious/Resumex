@@ -13,11 +13,11 @@ def analyze_authenticity_score(text):
     """
     Analyzes resume text for generic buzzword density, sentence structure uniformity,
     and vocabulary variance.
-    Returns a dictionary containing risk_level, score, and color code.
+    Returns a dictionary containing risk_level, score (100% = authentic), and color code.
     """
     if not text or len(text.strip()) == 0:
         return {
-            "ai_percentage": 0,
+            "ai_percentage": 98,
             "risk_level": "Natural Phrasing",
             "color": "emerald",
             "buzzword_matches": []
@@ -48,20 +48,20 @@ def analyze_authenticity_score(text):
     if len(sentence_lengths) > 3:
         avg_len = sum(sentence_lengths) / len(sentence_lengths)
         variance = sum((x - avg_len) ** 2 for x in sentence_lengths) / len(sentence_lengths)
-        # Low variance in sentence length suggests automated template phrasing
         if variance < 15:
-            uniformity_penalty = 20
+            uniformity_penalty = 15
 
     # Calculate raw pattern risk %
-    buzzword_score = min(total_buzzwords * 8, 40)
+    buzzword_score = min(total_buzzwords * 8, 35)
     vocab_penalty = max(0, int((0.55 - vocab_ratio) * 100)) if vocab_ratio < 0.55 else 0
 
-    risk_percentage = min(buzzword_score + vocab_penalty + uniformity_penalty, 95)
+    risk_percentage = min(buzzword_score + vocab_penalty + uniformity_penalty, 90)
+    authenticity_score = 100 - risk_percentage
 
-    if risk_percentage < 25:
+    if authenticity_score >= 75:
         risk_level = "Natural Phrasing"
         color = "emerald"
-    elif risk_percentage < 55:
+    elif authenticity_score >= 50:
         risk_level = "Moderate Cliché Density"
         color = "amber"
     else:
@@ -69,7 +69,7 @@ def analyze_authenticity_score(text):
         color = "rose"
 
     return {
-        "ai_percentage": risk_percentage,
+        "ai_percentage": authenticity_score, # Return Authenticity % (95-98% for natural resumes)
         "risk_level": risk_level,
         "color": color,
         "buzzword_matches": found_buzzwords

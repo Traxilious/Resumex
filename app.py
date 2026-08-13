@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 
 from database import init_db, get_db_connection
-from services.document_parser import parse_document, extract_contact_info, extract_sections, reconstruct_smart_fallback
+from services.document_parser import parse_document, extract_contact_info, extract_sections
 from services.ats_engine import analyze_ats_match
 from services.scoring_engine import calculate_resume_score
 from services.authenticity_detector import analyze_authenticity_score
@@ -63,20 +63,8 @@ def analyze_resume():
     file.save(filepath)
 
     try:
-        # 1. Parse document text & contact info
+        # 1. Parse document text & contact info cleanly
         parsed_data = parse_document(filepath)
-
-        # Smart candidate profile reconstructor fallback ensuring 100% successful high-scoring evaluation
-        if not parsed_data.get("raw_text") or len(parsed_data["raw_text"].strip().split()) < 15:
-            raw_t = reconstruct_smart_fallback(filename)
-            parsed_data = {
-                "raw_text": raw_t,
-                "cleaned_text": raw_t.lower(),
-                "contact_info": extract_contact_info(raw_t),
-                "sections": extract_sections(raw_t),
-                "word_count": len(raw_t.split()),
-                "character_count": len(raw_t)
-            }
 
         # 2. Query target role skills from database
         conn = get_db_connection()
