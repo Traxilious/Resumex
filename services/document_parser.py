@@ -1,7 +1,14 @@
 import re
 import os
+import sys
 import io
 import docx
+
+# Ensure Vercel / serverless writable home & temp directory for OCR models
+if os.environ.get("VERCEL") or not os.access(os.path.expanduser("~"), os.W_OK):
+    os.environ["HOME"] = "/tmp"
+    os.environ["TMPDIR"] = "/tmp"
+    os.environ["XDG_CACHE_HOME"] = "/tmp"
 
 def ocr_pdf_pages(filepath):
     """
